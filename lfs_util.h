@@ -129,7 +129,11 @@ static inline uint32_t lfs_ctz(uint32_t a) {
 #if !defined(LFS_NO_INTRINSICS) && defined(__GNUC__)
     return __builtin_ctz(a);
 #else
-    return lfs_npw2((a & -a) + 1) - 1;
+    //return lfs_npw2((a & -a) + 1) - 1;
+	__asm
+	{
+		bsf eax, dword ptr[a];
+	}
 #endif
 }
 

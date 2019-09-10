@@ -28,9 +28,9 @@ typedef struct lfs_emubd {
     char *child;
 
     struct {
-        uint64_t read_count;
-        uint64_t prog_count;
-        uint64_t erase_count;
+        uint32_t read_count;
+        uint32_t prog_count;
+        uint32_t erase_count;
     } stats;
 
     struct {
