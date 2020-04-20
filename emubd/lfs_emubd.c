@@ -4,8 +4,7 @@
  * Copyright (c) 2017, Arm Limited. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  */
-
-#include "emubd/lfs_emubd.h"
+#include "lfs_emubd.h"
 
 #include <errno.h>
 #include <string.h>
@@ -18,8 +17,10 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#define S_IWUSR 00200
+#define S_IWUSR  0x0080
+#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
 
 // Emulated block device utils
 static inline void lfs_emubd_tole32(lfs_emubd_t *emu) {
@@ -82,7 +83,7 @@ int lfs_emubd_create(const struct lfs_config *cfg, const char *path) {
     }
 
     strcpy(emu->path, path);
-    emu->path[pathlen] = '\\';
+    emu->path[pathlen] = '/';
     emu->child = &emu->path[pathlen+1];
     memset(emu->child, '\0', LFS_NAME_MAX+1);
 
@@ -95,7 +96,7 @@ int lfs_emubd_create(const struct lfs_config *cfg, const char *path) {
     }
 
     // Load stats to continue incrementing
-    snprintf(emu->child, LFS_NAME_MAX, "stats");
+    snprintf(emu->child, LFS_NAME_MAX, ".stats");
     FILE *f = fopen(emu->path, "r");
     if (!f) {
         memset(&emu->stats, LFS_EMUBD_ERASE_VALUE, sizeof(emu->stats));
@@ -105,6 +106,7 @@ int lfs_emubd_create(const struct lfs_config *cfg, const char *path) {
         if (res < 1) {
             err = -errno;
             LFS_TRACE("lfs_emubd_create -> %"PRId32, err);
+            fclose(f);
             return err;
         }
 
@@ -117,7 +119,7 @@ int lfs_emubd_create(const struct lfs_config *cfg, const char *path) {
     }
 
     // Load history
-    snprintf(emu->child, LFS_NAME_MAX, "history");
+    snprintf(emu->child, LFS_NAME_MAX, ".history");
     f = fopen(emu->path, "r");
     if (!f) {
         memset(&emu->history, 0, sizeof(emu->history));
@@ -127,6 +129,7 @@ int lfs_emubd_create(const struct lfs_config *cfg, const char *path) {
         if (res < 1) {
             err = -errno;
             LFS_TRACE("lfs_emubd_create -> %"PRId32, err);
+            fclose(f);
             return err;
         }
 
@@ -181,6 +184,7 @@ int lfs_emubd_read(const struct lfs_config *cfg, lfs_block_t block,
         if (err) {
             err = -errno;
             LFS_TRACE("lfs_emubd_read -> %d", err);
+            fclose(f);
             return err;
         }
 
@@ -188,6 +192,7 @@ int lfs_emubd_read(const struct lfs_config *cfg, lfs_block_t block,
         if (res < size && !feof(f)) {
             err = -errno;
             LFS_TRACE("lfs_emubd_read -> %d", err);
+            fclose(f);
             return err;
         }
 
@@ -233,6 +238,7 @@ int lfs_emubd_prog(const struct lfs_config *cfg, lfs_block_t block,
     if (err) {
         err = -errno;
         LFS_TRACE("lfs_emubd_prog -> %d", err);
+        fclose(f);
         return err;
     }
 
@@ -240,6 +246,7 @@ int lfs_emubd_prog(const struct lfs_config *cfg, lfs_block_t block,
     if (res < size) {
         err = -errno;
         LFS_TRACE("lfs_emubd_prog -> %d", err);
+        fclose(f);
         return err;
     }
 
@@ -247,6 +254,7 @@ int lfs_emubd_prog(const struct lfs_config *cfg, lfs_block_t block,
     if (err) {
         err = -errno;
         LFS_TRACE("lfs_emubd_prog -> %d", err);
+        fclose(f);
         return err;
     }
 
@@ -255,6 +263,7 @@ int lfs_emubd_prog(const struct lfs_config *cfg, lfs_block_t block,
     if (res < 1) {
         err = -errno;
         LFS_TRACE("lfs_emubd_prog -> %d", err);
+        fclose(f);
         return err;
     }
 
@@ -329,7 +338,7 @@ int lfs_emubd_sync(const struct lfs_config *cfg) {
     lfs_emubd_t *emu = cfg->context;
 
     // Just write out info/stats for later lookup
-    snprintf(emu->child, LFS_NAME_MAX, "config");
+    snprintf(emu->child, LFS_NAME_MAX, ".config");
     FILE *f = fopen(emu->path, "w");
     if (!f) {
         int err = -errno;
@@ -343,6 +352,7 @@ int lfs_emubd_sync(const struct lfs_config *cfg) {
     if (res < 1) {
         int err = -errno;
         LFS_TRACE("lfs_emubd_sync -> %d", err);
+        fclose(f);
         return err;
     }
 
@@ -353,7 +363,7 @@ int lfs_emubd_sync(const struct lfs_config *cfg) {
         return err;
     }
 
-    snprintf(emu->child, LFS_NAME_MAX, "stats");
+    snprintf(emu->child, LFS_NAME_MAX, ".stats");
     f = fopen(emu->path, "w");
     if (!f) {
         err = -errno;
@@ -367,6 +377,7 @@ int lfs_emubd_sync(const struct lfs_config *cfg) {
     if (res < 1) {
         err = -errno;
         LFS_TRACE("lfs_emubd_sync -> %d", err);
+        fclose(f);
         return err;
     }
 
@@ -377,7 +388,7 @@ int lfs_emubd_sync(const struct lfs_config *cfg) {
         return err;
     }
 
-    snprintf(emu->child, LFS_NAME_MAX, "history");
+    snprintf(emu->child, LFS_NAME_MAX, ".history");
     f = fopen(emu->path, "w");
     if (!f) {
         err = -errno;
@@ -391,6 +402,7 @@ int lfs_emubd_sync(const struct lfs_config *cfg) {
     if (res < 1) {
         err = -errno;
         LFS_TRACE("lfs_emubd_sync -> %d", err);
+        fclose(f);
         return err;
     }
 
