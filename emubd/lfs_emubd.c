@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <direct.h>
 
 #define S_IWUSR  0x0080
 #if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
@@ -88,7 +89,7 @@ int lfs_emubd_create(const struct lfs_config *cfg, const char *path) {
     memset(emu->child, '\0', LFS_NAME_MAX+1);
 
     // Create directory if it doesn't exist
-    int err = mkdir(path, 0777);
+    int err = mkdir(path);
     if (err && errno != EEXIST) {
         err = -errno;
         LFS_TRACE("lfs_emubd_create -> %"PRId32, err);
